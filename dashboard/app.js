@@ -292,17 +292,19 @@ function renderOpenTabsMissionCard(mission, missionIndex) {
     return `<span class="page-chip">${display}</span>`;
   }).join('') + (extraCount > 0 ? `<span class="page-chip">+${extraCount} more</span>` : '');
 
-  // The "Close all" button — data-open-tab-mission-idx lets the click handler
-  // find this mission in the in-memory openTabMissions array (since these
-  // missions don't have DB IDs).
+  // Use a stable ID based on mission name (not array index, which shifts when
+  // earlier missions are closed). This way closing mission #2 doesn't break
+  // the button on mission #5.
+  const stableId = mission._stableId || missionIndex;
+
   const actionsHtml = tabCount > 0 ? `
-    <button class="action-btn close-tabs" data-action="close-open-tabs" data-open-mission-idx="${missionIndex}">
+    <button class="action-btn close-tabs" data-action="close-open-tabs" data-open-mission-id="${stableId}">
       ${ICONS.close}
       Close all ${tabCount} tab${tabCount !== 1 ? 's' : ''}
     </button>` : '';
 
   return `
-    <div class="mission-card" data-open-mission-idx="${missionIndex}">
+    <div class="mission-card" data-open-mission-id="${stableId}">
       <div class="status-bar active"></div>
       <div class="mission-content">
         <div class="mission-top">
@@ -533,7 +535,11 @@ async function renderDashboard() {
 
       if (clusterRes.ok) {
         const clusterData = await clusterRes.json();
-        openTabMissions = clusterData.missions || [];
+        openTabMissions = (clusterData.missions || []).map((m, i) => ({
+          ...m,
+          // Stable ID based on name — survives other missions being closed
+          _stableId: m.name.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 40) || `mission-${i}`,
+        }));
       }
     } catch (err) {
       console.warn('[TMC] Could not cluster open tabs:', err);
@@ -686,11 +692,11 @@ document.addEventListener('click', async (e) => {
   const card = actionEl.closest('.mission-card');
 
   // ---- close-open-tabs: close all tabs for an open-tab-clustered mission ----
-  // These missions don't have DB IDs — they're identified by their index in
-  // the in-memory openTabMissions array.
+  // These missions use a stable ID (based on name) so closing one doesn't
+  // break buttons on others.
   if (action === 'close-open-tabs') {
-    const missionIdx = parseInt(actionEl.dataset.openMissionIdx, 10);
-    const mission = openTabMissions[missionIdx];
+    const stableId = actionEl.dataset.openMissionId;
+    const mission = openTabMissions.find(m => m._stableId === stableId);
     if (!mission) return;
 
     const urls = (mission.tabs || []).map(t => t.url);
@@ -703,7 +709,8 @@ document.addEventListener('click', async (e) => {
     }
 
     // Remove from in-memory store so stale count stays accurate
-    openTabMissions.splice(missionIdx, 1);
+    const idx = openTabMissions.indexOf(mission);
+    if (idx !== -1) openTabMissions.splice(idx, 1);
 
     await updateStaleCount();
     showToast(`Closed tabs for "${mission.name}"`);
