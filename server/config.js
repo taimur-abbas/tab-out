@@ -77,9 +77,11 @@ function loadConfig() {
 // can reference them (e.g. install.js needs CONFIG_DIR and CONFIG_FILE).
 const config = loadConfig();
 
-module.exports = {
-  config,
-  CONFIG_DIR,
-  CONFIG_FILE,
-  DEFAULTS,
-};
+// Export the config object directly so other modules can do:
+//   const config = require('./config');
+//   console.log(config.port);
+// Also attach the paths as properties for modules that need them (e.g. install.js)
+config.CONFIG_DIR = CONFIG_DIR;
+config.CONFIG_FILE = CONFIG_FILE;
+
+module.exports = config;
