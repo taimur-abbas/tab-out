@@ -1644,7 +1644,11 @@ document.addEventListener('click', async (e) => {
     }
 
     showToast('Saved for later');
-    // Refresh the deferred column to show the new item
+
+    // Refresh all sections to remove the saved tab from groups/ungrouped
+    await fetchTabGroups();
+    renderTabGroups();
+    renderUngroupedTabs();
     await renderDeferredColumn();
     return;
   }
