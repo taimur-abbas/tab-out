@@ -1140,7 +1140,7 @@ function renderTabGroups() {
   };
 
   container.innerHTML = tabGroups.map(group => `
-    <div class="mission-card" style="border-left: 4px solid ${colorMap[group.color] || '#ccc'}; margin-bottom: 16px;">
+    <div class="mission-card drop-zone" data-group-id="${group.id}" style="border-left: 4px solid ${colorMap[group.color] || '#ccc'}; margin-bottom: 16px; transition: background-color 0.2s, transform 0.2s;">
       <div class="mission-header" style="cursor: pointer;" data-action="toggle-group" data-group-id="${group.id}" data-collapsed="${group.collapsed}">
         <div class="mission-title">
           <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: ${colorMap[group.color] || '#ccc'}; margin-right: 8px;"></span>
@@ -1209,9 +1209,12 @@ function renderUngroupedTabs() {
   }
 
   list.innerHTML = ungroupedTabs.map(tab => `
-    <div class="deferred-item" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin: 4px 0;">
-      <div style="flex: 1; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" data-action="focus-tab" data-tab-url="${tab.url}">
-        <div style="font-size: 13px; font-weight: 500;">${tab.title || 'Untitled'}</div>
+    <div class="deferred-item draggable-tab"
+         draggable="true"
+         data-tab-id="${tab.id}"
+         style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin: 4px 0; cursor: move;">
+      <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" data-action="focus-tab" data-tab-url="${tab.url}">
+        <div style="font-size: 13px; font-weight: 500;">⋮⋮ ${tab.title || 'Untitled'}</div>
         <div style="font-size: 11px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis;">${tab.url}</div>
       </div>
       <button class="action-btn close-btn" data-action="close-ungrouped-tab" data-tab-id="${tab.id}" style="margin-left: 8px; padding: 4px 8px; font-size: 11px;">
@@ -1810,6 +1813,90 @@ document.addEventListener('click', async (e) => {
     showToast(`Closed ${tabsToClose.length} tab${tabsToClose.length !== 1 ? 's' : ''} from ${domain}`);
 
   }
+});
+
+/* ----------------------------------------------------------------
+   DRAG AND DROP — Drag ungrouped tabs into tab groups
+   ---------------------------------------------------------------- */
+
+let draggedTabId = null;
+
+// When drag starts, store the tab ID
+document.addEventListener('dragstart', (e) => {
+  const draggableTab = e.target.closest('.draggable-tab');
+  if (!draggableTab) return;
+
+  draggedTabId = parseInt(draggableTab.dataset.tabId);
+  e.dataTransfer.effectAllowed = 'move';
+  draggableTab.style.opacity = '0.4';
+});
+
+// When drag ends, reset opacity
+document.addEventListener('dragend', (e) => {
+  const draggableTab = e.target.closest('.draggable-tab');
+  if (draggableTab) {
+    draggableTab.style.opacity = '1';
+  }
+  draggedTabId = null;
+
+  // Remove highlight from all drop zones
+  document.querySelectorAll('.drop-zone').forEach(zone => {
+    zone.style.backgroundColor = '';
+    zone.style.transform = '';
+  });
+});
+
+// Allow dropping by preventing default
+document.addEventListener('dragover', (e) => {
+  const dropZone = e.target.closest('.drop-zone');
+  if (!dropZone || !draggedTabId) return;
+
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+
+  // Highlight the drop zone
+  dropZone.style.backgroundColor = 'rgba(29, 122, 232, 0.1)';
+  dropZone.style.transform = 'scale(1.02)';
+});
+
+// Remove highlight when dragging leaves
+document.addEventListener('dragleave', (e) => {
+  const dropZone = e.target.closest('.drop-zone');
+  if (!dropZone) return;
+
+  // Only remove highlight if we're actually leaving the drop zone
+  const rect = dropZone.getBoundingClientRect();
+  if (e.clientX < rect.left || e.clientX >= rect.right ||
+      e.clientY < rect.top || e.clientY >= rect.bottom) {
+    dropZone.style.backgroundColor = '';
+    dropZone.style.transform = '';
+  }
+});
+
+// Handle the drop
+document.addEventListener('drop', async (e) => {
+  const dropZone = e.target.closest('.drop-zone');
+  if (!dropZone || !draggedTabId) return;
+
+  e.preventDefault();
+
+  const groupId = parseInt(dropZone.dataset.groupId);
+
+  // Add the tab to the group
+  await sendToExtension('groupTabs', { tabIds: [draggedTabId], groupId });
+
+  // Refresh the UI
+  await fetchTabGroups();
+  await fetchOpenTabs();
+  renderTabGroups();
+  renderUngroupedTabs();
+
+  showToast('Tab added to group');
+
+  // Reset styles
+  dropZone.style.backgroundColor = '';
+  dropZone.style.transform = '';
+  draggedTabId = null;
 });
 
 // ---- Archive toggle — expand/collapse the archive section ----
