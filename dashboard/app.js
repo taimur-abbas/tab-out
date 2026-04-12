@@ -32,6 +32,9 @@ let openTabs = [];
 // Track all Chrome tab groups
 let tabGroups = [];
 
+// Track which groups are collapsed in the dashboard (UI-only, doesn't affect Chrome)
+let collapsedGroups = new Set();
+
 /**
  * sendToExtension(action, data)
  *
@@ -1139,13 +1142,15 @@ function renderTabGroups() {
     orange: '#e8710a'
   };
 
-  container.innerHTML = tabGroups.map(group => `
+  container.innerHTML = tabGroups.map(group => {
+    const isCollapsed = collapsedGroups.has(group.id);
+    return `
     <div class="mission-card drop-zone" data-group-id="${group.id}" style="border-left: 4px solid ${colorMap[group.color] || '#ccc'}; margin-bottom: 16px; transition: background-color 0.2s, transform 0.2s;">
-      <div class="mission-header" style="cursor: pointer;" data-action="toggle-group" data-group-id="${group.id}" data-collapsed="${group.collapsed}">
+      <div class="mission-header" style="cursor: pointer;" data-action="toggle-group" data-group-id="${group.id}">
         <div class="mission-title">
           <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: ${colorMap[group.color] || '#ccc'}; margin-right: 8px;"></span>
           ${group.title || 'Untitled Group'}
-          <span style="margin-left: 8px; font-size: 11px; opacity: 0.6;">${group.collapsed ? '▶' : '▼'}</span>
+          <span style="margin-left: 8px; font-size: 11px; opacity: 0.6;">${isCollapsed ? '▶' : '▼'}</span>
         </div>
         <div class="mission-count">${group.tabs.length} tab${group.tabs.length !== 1 ? 's' : ''}</div>
       </div>
@@ -1157,7 +1162,7 @@ function renderTabGroups() {
           Ungroup All
         </button>
       </div>
-      <div class="group-tabs-list" style="display: ${group.collapsed ? 'none' : 'block'}; margin-top: 12px;">
+      <div class="group-tabs-list" style="display: ${isCollapsed ? 'none' : 'block'}; margin-top: 12px;">
         ${group.tabs.map(tab => `
           <div class="deferred-item" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin: 4px 0; background: var(--card-bg); border-radius: 6px;">
             <div style="flex: 1; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" data-action="focus-tab" data-tab-url="${tab.url}">
@@ -1171,7 +1176,8 @@ function renderTabGroups() {
         `).join('')}
       </div>
     </div>
-  `).join('');
+    `;
+  }).join('');
 
   count.textContent = `${tabGroups.length} group${tabGroups.length !== 1 ? 's' : ''}`;
   section.style.display = 'block';
@@ -1391,14 +1397,18 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  // --- Toggle tab group collapsed state ---
+  // --- Toggle tab group collapsed state (UI-only, doesn't affect Chrome) ---
   if (action === 'toggle-group') {
     const groupId = parseInt(actionEl.dataset.groupId);
-    const collapsed = actionEl.dataset.collapsed === 'true';
-    await sendToExtension('updateTabGroup', { groupId, properties: { collapsed: !collapsed } });
-    await fetchTabGroups();
+
+    // Toggle the collapsed state in the dashboard only
+    if (collapsedGroups.has(groupId)) {
+      collapsedGroups.delete(groupId);
+    } else {
+      collapsedGroups.add(groupId);
+    }
+
     renderTabGroups();
-    showToast(collapsed ? 'Group expanded' : 'Group collapsed');
     return;
   }
 
