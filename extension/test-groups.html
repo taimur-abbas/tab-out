@@ -134,124 +134,131 @@
       output.scrollTop = output.scrollHeight;
     }
 
-    async function sendMessage(action, payload = {}) {
-      return new Promise((resolve) => {
-        const messageId = Math.random().toString(36).substring(7);
-
-        const handler = (event) => {
-          if (event.data.messageId === messageId) {
-            window.removeEventListener('message', handler);
-            resolve(event.data);
-          }
-        };
-
-        window.addEventListener('message', handler);
-        window.parent.postMessage({ messageId, action, ...payload }, '*');
-
-        setTimeout(() => {
-          window.removeEventListener('message', handler);
-          resolve({ error: 'Timeout' });
-        }, 5000);
-      });
-    }
-
     async function loadGroups() {
       log('Loading tab groups...');
-      const response = await sendMessage('getTabGroups');
 
-      if (response.error) {
-        log('❌ Error: ' + response.error);
-        return;
-      }
+      try {
+        const allTabs = await chrome.tabs.query({});
+        const allGroups = await chrome.tabGroups.query({});
 
-      const container = document.getElementById('groups-container');
+        // Create a map of groupId -> group metadata
+        const groupsMap = new Map();
+        for (const group of allGroups) {
+          groupsMap.set(group.id, {
+            id: group.id,
+            title: group.title || '',
+            color: group.color,
+            collapsed: group.collapsed,
+            windowId: group.windowId,
+            tabs: []
+          });
+        }
 
-      if (!response.groups || response.groups.length === 0) {
-        container.innerHTML = '<p style="color: #666; font-style: italic;">No tab groups found. Create one in Chrome or use the form above!</p>';
-        log('ℹ️ No groups found');
-        return;
-      }
+        // Add tabs to their respective groups
+        for (const tab of allTabs) {
+          if (tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE) {
+            const group = groupsMap.get(tab.groupId);
+            if (group) {
+              group.tabs.push({
+                id: tab.id,
+                url: tab.url,
+                title: tab.title,
+                active: tab.active,
+                windowId: tab.windowId
+              });
+            }
+          }
+        }
 
-      container.innerHTML = response.groups.map(group => `
-        <div class="group">
-          <div class="group-header">
-            <span class="color-badge" style="background: ${colors[group.color] || '#ccc'}"></span>
-            <span>${group.title || 'Untitled Group'}</span>
-            <span style="color: #666; font-size: 12px;">(${group.tabs.length} tabs)</span>
-            ${group.collapsed ? '<span style="color: #999; font-size: 12px;">collapsed</span>' : ''}
+        const groups = Array.from(groupsMap.values());
+        const container = document.getElementById('groups-container');
+
+        if (groups.length === 0) {
+          container.innerHTML = '<p style="color: #666; font-style: italic;">No tab groups found. Create one in Chrome or use the form above!</p>';
+          log('ℹ️ No groups found');
+          return;
+        }
+
+        container.innerHTML = groups.map(group => `
+          <div class="group">
+            <div class="group-header">
+              <span class="color-badge" style="background: ${colors[group.color] || '#ccc'}"></span>
+              <span>${group.title || 'Untitled Group'}</span>
+              <span style="color: #666; font-size: 12px;">(${group.tabs.length} tabs)</span>
+              ${group.collapsed ? '<span style="color: #999; font-size: 12px;">collapsed</span>' : ''}
+            </div>
+            ${group.tabs.map(tab => `
+              <div class="tab-item">${tab.title || tab.url}</div>
+            `).join('')}
+            <div style="margin-top: 10px;">
+              <button onclick="toggleCollapse(${group.id}, ${!group.collapsed})">
+                ${group.collapsed ? '📂 Expand' : '📁 Collapse'}
+              </button>
+              <button onclick="updateGroupTitle(${group.id})">✏️ Rename</button>
+            </div>
           </div>
-          ${group.tabs.map(tab => `
-            <div class="tab-item">${tab.title || tab.url}</div>
-          `).join('')}
-          <div style="margin-top: 10px;">
-            <button onclick="toggleCollapse(${group.id}, ${!group.collapsed})">
-              ${group.collapsed ? '📂 Expand' : '📁 Collapse'}
-            </button>
-            <button onclick="updateGroupTitle(${group.id})">✏️ Rename</button>
-          </div>
-        </div>
-      `).join('');
+        `).join('');
 
-      log(`✅ Loaded ${response.groups.length} groups`);
+        log(`✅ Loaded ${groups.length} groups with ${allTabs.filter(t => t.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE).length} grouped tabs`);
+      } catch (error) {
+        log('❌ Error: ' + error.message);
+      }
     }
 
     async function createGroupFromSelection() {
       log('Getting current tabs...');
-      const tabsResponse = await sendMessage('getTabs');
 
-      if (tabsResponse.error) {
-        log('❌ Error getting tabs: ' + tabsResponse.error);
-        return;
+      try {
+        const allTabs = await chrome.tabs.query({});
+        const currentWindow = await chrome.windows.getCurrent();
+
+        // Get ungrouped tabs from current window
+        const ungroupedTabs = allTabs.filter(t =>
+          t.windowId === currentWindow.id &&
+          t.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE &&
+          !t.url.startsWith('chrome-extension://')
+        );
+
+        if (ungroupedTabs.length === 0) {
+          log('❌ No ungrouped tabs found in current window');
+          alert('No ungrouped tabs found. Please open some tabs first!');
+          return;
+        }
+
+        // Take first 3 ungrouped tabs as an example
+        const tabIds = ungroupedTabs.slice(0, 3).map(t => t.id);
+        const title = document.getElementById('group-title').value;
+        const color = document.getElementById('group-color').value;
+
+        log(`Creating group "${title}" with ${tabIds.length} tabs...`);
+
+        // Create group
+        const groupId = await chrome.tabs.group({ tabIds });
+
+        // Update group properties
+        await chrome.tabGroups.update(groupId, {
+          title,
+          color,
+          collapsed: false
+        });
+
+        log(`✅ Created group #${groupId}`);
+        setTimeout(loadGroups, 500);
+      } catch (error) {
+        log('❌ Error: ' + error.message);
       }
-
-      // Get ungrouped tabs from current window
-      const currentWindow = tabsResponse.tabs.find(t => t.active)?.windowId;
-      const ungroupedTabs = tabsResponse.tabs.filter(t =>
-        t.windowId === currentWindow && !t.groupId && !t.isTabOut
-      );
-
-      if (ungroupedTabs.length === 0) {
-        log('❌ No ungrouped tabs found in current window');
-        alert('No ungrouped tabs found. Please open some tabs first!');
-        return;
-      }
-
-      // Take first 3 ungrouped tabs as an example
-      const tabIds = ungroupedTabs.slice(0, 3).map(t => t.id);
-      const title = document.getElementById('group-title').value;
-      const color = document.getElementById('group-color').value;
-
-      log(`Creating group "${title}" with ${tabIds.length} tabs...`);
-
-      const response = await sendMessage('createTabGroup', {
-        tabIds,
-        properties: { title, color, collapsed: false }
-      });
-
-      if (response.error) {
-        log('❌ Error: ' + response.error);
-        return;
-      }
-
-      log(`✅ Created group #${response.groupId}`);
-      setTimeout(loadGroups, 500);
     }
 
     async function toggleCollapse(groupId, collapsed) {
       log(`${collapsed ? 'Collapsing' : 'Expanding'} group #${groupId}...`);
 
-      const response = await sendMessage('updateTabGroup', {
-        groupId,
-        properties: { collapsed }
-      });
-
-      if (response.error) {
-        log('❌ Error: ' + response.error);
-        return;
+      try {
+        await chrome.tabGroups.update(groupId, { collapsed });
+        log('✅ Updated');
+        setTimeout(loadGroups, 300);
+      } catch (error) {
+        log('❌ Error: ' + error.message);
       }
-
-      log('✅ Updated');
-      setTimeout(loadGroups, 300);
     }
 
     async function updateGroupTitle(groupId) {
@@ -260,18 +267,13 @@
 
       log(`Renaming group #${groupId}...`);
 
-      const response = await sendMessage('updateTabGroup', {
-        groupId,
-        properties: { title: newTitle }
-      });
-
-      if (response.error) {
-        log('❌ Error: ' + response.error);
-        return;
+      try {
+        await chrome.tabGroups.update(groupId, { title: newTitle });
+        log('✅ Renamed');
+        setTimeout(loadGroups, 300);
+      } catch (error) {
+        log('❌ Error: ' + error.message);
       }
-
-      log('✅ Renamed');
-      setTimeout(loadGroups, 300);
     }
 
     // Auto-load groups on page load

@@ -44,8 +44,10 @@ function showFallback() {
 // We handle the action, then reply with the same messageId so the dashboard
 // can match the response to the original request.
 window.addEventListener('message', async (event) => {
-  // Security: only accept messages from our dashboard origin
-  if (event.origin !== 'http://localhost:3456') return;
+  // Security: only accept messages from our dashboard origin or our own extension
+  const extensionOrigin = `chrome-extension://${chrome.runtime.id}`;
+  const allowedOrigins = ['http://localhost:3456', extensionOrigin];
+  if (!allowedOrigins.includes(event.origin)) return;
 
   const msg = event.data || {};
   const { messageId, action } = msg;
@@ -112,10 +114,14 @@ window.addEventListener('message', async (event) => {
     response.success = true;
   }
 
-  // Send the response back to the dashboard inside the iframe
-  frame.contentWindow.postMessage(
+  // Send the response back to the sender (dashboard or test page)
+  // If the message came from the iframe, reply to it; otherwise reply to the current window
+  const targetWindow = event.source === frame?.contentWindow ? frame.contentWindow : window;
+  const targetOrigin = event.origin;
+
+  targetWindow.postMessage(
     { messageId, ...response },
-    'http://localhost:3456'
+    targetOrigin
   );
 });
 
