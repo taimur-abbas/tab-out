@@ -1185,6 +1185,13 @@ function renderTabGroups() {
     `;
   }).join('');
 
+  // Add "Create Group" button at the bottom
+  container.innerHTML += `
+    <button class="action-btn" data-action="create-group" style="margin-top: 16px; width: 100%; padding: 10px;">
+      ➕ Create Group
+    </button>
+  `;
+
   count.textContent = `${tabGroups.length} group${tabGroups.length !== 1 ? 's' : ''}`;
   section.style.display = 'block';
 }
