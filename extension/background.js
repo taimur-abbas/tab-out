@@ -77,6 +77,28 @@ chrome.tabs.onRemoved.addListener(() => {
   updateBadge();
 });
 
+// Update the badge when tabs are moved between groups
+chrome.tabs.onAttached.addListener(() => {
+  updateBadge();
+});
+
+// ─── Tab Groups event listeners ──────────────────────────────────────────────
+
+// Update when a new tab group is created
+chrome.tabGroups.onCreated.addListener(() => {
+  updateBadge();
+});
+
+// Update when a tab group is modified (title, color, collapsed state)
+chrome.tabGroups.onUpdated.addListener(() => {
+  updateBadge();
+});
+
+// Update when a tab group is removed
+chrome.tabGroups.onRemoved.addListener(() => {
+  updateBadge();
+});
+
 // ─── Polling ─────────────────────────────────────────────────────────────────
 
 // Refresh the badge every 60 seconds in case missions are added/edited via

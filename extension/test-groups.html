@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tab Groups Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+    }
+    .section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .group {
+      background: #f8f9fa;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border-left: 4px solid #007bff;
+    }
+    .group-header {
+      font-weight: bold;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .color-badge {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .tab-item {
+      padding: 5px 10px;
+      margin: 5px 0;
+      background: white;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    #output {
+      background: #2d2d2d;
+      color: #f8f8f2;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    input, select {
+      padding: 8px;
+      margin: 5px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🗂️ Tab Groups Test Dashboard</h1>
+
+  <div class="section">
+    <h2>Current Tab Groups</h2>
+    <button onclick="loadGroups()">🔄 Refresh Groups</button>
+    <div id="groups-container"></div>
+  </div>
+
+  <div class="section">
+    <h2>Create New Group</h2>
+    <p>Select some tabs in Chrome, then create a group:</p>
+    <input type="text" id="group-title" placeholder="Group title" value="My Group">
+    <select id="group-color">
+      <option value="grey">Grey</option>
+      <option value="blue" selected>Blue</option>
+      <option value="red">Red</option>
+      <option value="yellow">Yellow</option>
+      <option value="green">Green</option>
+      <option value="pink">Pink</option>
+      <option value="purple">Purple</option>
+      <option value="cyan">Cyan</option>
+      <option value="orange">Orange</option>
+    </select>
+    <button onclick="createGroupFromSelection()">➕ Create Group</button>
+  </div>
+
+  <div class="section">
+    <h2>Console Output</h2>
+    <div id="output">Ready...</div>
+  </div>
+
+  <script>
+    const colors = {
+      grey: '#5f6368',
+      blue: '#1a73e8',
+      red: '#d93025',
+      yellow: '#f9ab00',
+      green: '#188038',
+      pink: '#d01884',
+      purple: '#9334e6',
+      cyan: '#007b83',
+      orange: '#e8710a'
+    };
+
+    function log(message) {
+      const output = document.getElementById('output');
+      const timestamp = new Date().toLocaleTimeString();
+      output.textContent += `[${timestamp}] ${message}\n`;
+      output.scrollTop = output.scrollHeight;
+    }
+
+    async function sendMessage(action, payload = {}) {
+      return new Promise((resolve) => {
+        const messageId = Math.random().toString(36).substring(7);
+
+        const handler = (event) => {
+          if (event.data.messageId === messageId) {
+            window.removeEventListener('message', handler);
+            resolve(event.data);
+          }
+        };
+
+        window.addEventListener('message', handler);
+        window.parent.postMessage({ messageId, action, ...payload }, '*');
+
+        setTimeout(() => {
+          window.removeEventListener('message', handler);
+          resolve({ error: 'Timeout' });
+        }, 5000);
+      });
+    }
+
+    async function loadGroups() {
+      log('Loading tab groups...');
+      const response = await sendMessage('getTabGroups');
+
+      if (response.error) {
+        log('❌ Error: ' + response.error);
+        return;
+      }
+
+      const container = document.getElementById('groups-container');
+
+      if (!response.groups || response.groups.length === 0) {
+        container.innerHTML = '<p style="color: #666; font-style: italic;">No tab groups found. Create one in Chrome or use the form above!</p>';
+        log('ℹ️ No groups found');
+        return;
+      }
+
+      container.innerHTML = response.groups.map(group => `
+        <div class="group">
+          <div class="group-header">
+            <span class="color-badge" style="background: ${colors[group.color] || '#ccc'}"></span>
+            <span>${group.title || 'Untitled Group'}</span>
+            <span style="color: #666; font-size: 12px;">(${group.tabs.length} tabs)</span>
+            ${group.collapsed ? '<span style="color: #999; font-size: 12px;">collapsed</span>' : ''}
+          </div>
+          ${group.tabs.map(tab => `
+            <div class="tab-item">${tab.title || tab.url}</div>
+          `).join('')}
+          <div style="margin-top: 10px;">
+            <button onclick="toggleCollapse(${group.id}, ${!group.collapsed})">
+              ${group.collapsed ? '📂 Expand' : '📁 Collapse'}
+            </button>
+            <button onclick="updateGroupTitle(${group.id})">✏️ Rename</button>
+          </div>
+        </div>
+      `).join('');
+
+      log(`✅ Loaded ${response.groups.length} groups`);
+    }
+
+    async function createGroupFromSelection() {
+      log('Getting current tabs...');
+      const tabsResponse = await sendMessage('getTabs');
+
+      if (tabsResponse.error) {
+        log('❌ Error getting tabs: ' + tabsResponse.error);
+        return;
+      }
+
+      // Get ungrouped tabs from current window
+      const currentWindow = tabsResponse.tabs.find(t => t.active)?.windowId;
+      const ungroupedTabs = tabsResponse.tabs.filter(t =>
+        t.windowId === currentWindow && !t.groupId && !t.isTabOut
+      );
+
+      if (ungroupedTabs.length === 0) {
+        log('❌ No ungrouped tabs found in current window');
+        alert('No ungrouped tabs found. Please open some tabs first!');
+        return;
+      }
+
+      // Take first 3 ungrouped tabs as an example
+      const tabIds = ungroupedTabs.slice(0, 3).map(t => t.id);
+      const title = document.getElementById('group-title').value;
+      const color = document.getElementById('group-color').value;
+
+      log(`Creating group "${title}" with ${tabIds.length} tabs...`);
+
+      const response = await sendMessage('createTabGroup', {
+        tabIds,
+        properties: { title, color, collapsed: false }
+      });
+
+      if (response.error) {
+        log('❌ Error: ' + response.error);
+        return;
+      }
+
+      log(`✅ Created group #${response.groupId}`);
+      setTimeout(loadGroups, 500);
+    }
+
+    async function toggleCollapse(groupId, collapsed) {
+      log(`${collapsed ? 'Collapsing' : 'Expanding'} group #${groupId}...`);
+
+      const response = await sendMessage('updateTabGroup', {
+        groupId,
+        properties: { collapsed }
+      });
+
+      if (response.error) {
+        log('❌ Error: ' + response.error);
+        return;
+      }
+
+      log('✅ Updated');
+      setTimeout(loadGroups, 300);
+    }
+
+    async function updateGroupTitle(groupId) {
+      const newTitle = prompt('Enter new group title:');
+      if (!newTitle) return;
+
+      log(`Renaming group #${groupId}...`);
+
+      const response = await sendMessage('updateTabGroup', {
+        groupId,
+        properties: { title: newTitle }
+      });
+
+      if (response.error) {
+        log('❌ Error: ' + response.error);
+        return;
+      }
+
+      log('✅ Renamed');
+      setTimeout(loadGroups, 300);
+    }
+
+    // Auto-load groups on page load
+    setTimeout(loadGroups, 500);
+  </script>
+</body>
+</html>

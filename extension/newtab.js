@@ -80,6 +80,26 @@ window.addEventListener('message', async (event) => {
       // Close extra Tab Out new-tab pages, keeping only the current one
       response = await handleCloseTabOutDupes();
 
+    } else if (action === 'getTabGroups') {
+      // Get all tab groups with their tabs
+      response = await handleGetTabGroups();
+
+    } else if (action === 'createTabGroup') {
+      // Create a new tab group
+      response = await handleCreateTabGroup(msg.tabIds, msg.properties);
+
+    } else if (action === 'updateTabGroup') {
+      // Update tab group properties (title, color, collapsed)
+      response = await handleUpdateTabGroup(msg.groupId, msg.properties);
+
+    } else if (action === 'groupTabs') {
+      // Add tabs to an existing group
+      response = await handleGroupTabs(msg.tabIds, msg.groupId);
+
+    } else if (action === 'ungroupTabs') {
+      // Remove tabs from their group
+      response = await handleUngroupTabs(msg.tabIds);
+
     } else {
       response = { error: `Unknown action: ${action}` };
     }
@@ -117,6 +137,7 @@ async function handleGetTabs() {
     title:    tab.title,
     windowId: tab.windowId,
     active:   tab.active,
+    groupId:  tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE ? tab.groupId : null,
     // Flag Tab Out's own new-tab pages so the dashboard can detect them.
     // Chrome may report the URL as chrome://newtab/ or the extension URL —
     // checking both ensures we catch them regardless.
@@ -331,4 +352,132 @@ async function handleCloseTabsExact(urls = []) {
     await chrome.tabs.remove(matchingIds);
   }
   return { closedCount: matchingIds.length };
+}
+
+// ─── Tab Groups handlers ─────────────────────────────────────────────────────
+
+/**
+ * getTabGroups — Returns all Chrome tab groups with their tabs.
+ * Groups tabs by their groupId and includes group metadata (title, color, collapsed).
+ */
+async function handleGetTabGroups() {
+  const allTabs = await chrome.tabs.query({});
+  const allGroups = await chrome.tabGroups.query({});
+
+  // Create a map of groupId -> group metadata
+  const groupsMap = new Map();
+  for (const group of allGroups) {
+    groupsMap.set(group.id, {
+      id: group.id,
+      title: group.title || '',
+      color: group.color,
+      collapsed: group.collapsed,
+      windowId: group.windowId,
+      tabs: []
+    });
+  }
+
+  // Add tabs to their respective groups
+  for (const tab of allTabs) {
+    if (tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE) {
+      const group = groupsMap.get(tab.groupId);
+      if (group) {
+        group.tabs.push({
+          id: tab.id,
+          url: tab.url,
+          title: tab.title,
+          active: tab.active,
+          windowId: tab.windowId
+        });
+      }
+    }
+  }
+
+  // Convert map to array
+  const groups = Array.from(groupsMap.values());
+
+  return { groups };
+}
+
+/**
+ * createTabGroup — Creates a new tab group with the specified tabs.
+ *
+ * @param {number[]} tabIds - Array of tab IDs to add to the group
+ * @param {Object} properties - { title?: string, color?: string, collapsed?: boolean }
+ */
+async function handleCreateTabGroup(tabIds = [], properties = {}) {
+  if (!tabIds || tabIds.length === 0) {
+    return { error: 'No tab IDs provided' };
+  }
+
+  // Group the tabs together
+  const groupId = await chrome.tabs.group({ tabIds });
+
+  // Update group properties if provided
+  const updateProps = {};
+  if (properties.title !== undefined) updateProps.title = properties.title;
+  if (properties.color !== undefined) updateProps.color = properties.color;
+  if (properties.collapsed !== undefined) updateProps.collapsed = properties.collapsed;
+
+  if (Object.keys(updateProps).length > 0) {
+    await chrome.tabGroups.update(groupId, updateProps);
+  }
+
+  return { groupId, ...updateProps };
+}
+
+/**
+ * updateTabGroup — Updates properties of an existing tab group.
+ *
+ * @param {number} groupId - The group ID to update
+ * @param {Object} properties - { title?: string, color?: string, collapsed?: boolean }
+ */
+async function handleUpdateTabGroup(groupId, properties = {}) {
+  if (groupId === undefined || groupId === null) {
+    return { error: 'No group ID provided' };
+  }
+
+  const updateProps = {};
+  if (properties.title !== undefined) updateProps.title = properties.title;
+  if (properties.color !== undefined) updateProps.color = properties.color;
+  if (properties.collapsed !== undefined) updateProps.collapsed = properties.collapsed;
+
+  if (Object.keys(updateProps).length === 0) {
+    return { error: 'No properties to update' };
+  }
+
+  await chrome.tabGroups.update(groupId, updateProps);
+  return { groupId, updated: updateProps };
+}
+
+/**
+ * groupTabs — Adds tabs to an existing group.
+ *
+ * @param {number[]} tabIds - Array of tab IDs to add to the group
+ * @param {number} groupId - The group ID to add tabs to
+ */
+async function handleGroupTabs(tabIds = [], groupId) {
+  if (!tabIds || tabIds.length === 0) {
+    return { error: 'No tab IDs provided' };
+  }
+  if (groupId === undefined || groupId === null) {
+    return { error: 'No group ID provided' };
+  }
+
+  await chrome.tabs.group({ tabIds, groupId });
+  return { groupId, addedTabCount: tabIds.length };
+}
+
+/**
+ * ungroupTabs — Removes tabs from their current group.
+ *
+ * @param {number[]} tabIds - Array of tab IDs to ungroup
+ */
+async function handleUngroupTabs(tabIds = []) {
+  if (!tabIds || tabIds.length === 0) {
+    return { error: 'No tab IDs provided' };
+  }
+
+  await chrome.tabs.ungroup(tabIds);
+  return { ungroupedCount: tabIds.length };
 }
