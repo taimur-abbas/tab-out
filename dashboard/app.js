@@ -1169,7 +1169,10 @@ function renderTabGroups() {
               <div style="font-size: 13px; font-weight: 500;">${tab.title || 'Untitled'}</div>
               <div style="font-size: 11px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis;">${tab.url}</div>
             </div>
-            <button class="action-btn close-btn" data-action="close-tab-from-group" data-tab-id="${tab.id}" style="margin-left: 8px; padding: 4px 8px; font-size: 11px;">
+            <button class="action-btn" data-action="defer-single-tab" data-tab-url="${tab.url}" data-tab-title="${tab.title}" title="Save for later" style="margin-left: 8px; padding: 4px 8px; font-size: 11px;">
+              ${ICONS.save}
+            </button>
+            <button class="action-btn close-btn" data-action="close-tab-from-group" data-tab-id="${tab.id}" style="margin-left: 4px; padding: 4px 8px; font-size: 11px;">
               ${ICONS.close}
             </button>
           </div>
@@ -1223,7 +1226,10 @@ function renderUngroupedTabs() {
         <div style="font-size: 13px; font-weight: 500;">⋮⋮ ${tab.title || 'Untitled'}</div>
         <div style="font-size: 11px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis;">${tab.url}</div>
       </div>
-      <button class="action-btn close-btn" data-action="close-ungrouped-tab" data-tab-id="${tab.id}" style="margin-left: 8px; padding: 4px 8px; font-size: 11px;">
+      <button class="action-btn" data-action="defer-single-tab" data-tab-url="${tab.url}" data-tab-title="${tab.title}" title="Save for later" style="margin-left: 8px; padding: 4px 8px; font-size: 11px;">
+        ${ICONS.save}
+      </button>
+      <button class="action-btn close-btn" data-action="close-ungrouped-tab" data-tab-id="${tab.id}" style="margin-left: 4px; padding: 4px 8px; font-size: 11px;">
         ${ICONS.close}
       </button>
     </div>
@@ -1336,11 +1342,9 @@ async function renderStaticDashboard() {
   renderTabGroups();
   renderUngroupedTabs();
 
-  // ── Hide old sections (domain cards and saved for later) ──────────────────
+  // ── Hide old sections (domain cards) ──────────────────────────────────────
   const openTabsSection = document.getElementById('openTabsSection');
-  const deferredColumn = document.getElementById('deferredColumn');
   if (openTabsSection) openTabsSection.style.display = 'none';
-  if (deferredColumn) deferredColumn.style.display = 'none';
 
   // ── Footer stats ──────────────────────────────────────────────────────────
   const statTabs = document.getElementById('statTabs');
@@ -1348,6 +1352,9 @@ async function renderStaticDashboard() {
 
   // ── Check for duplicate Tab Out tabs ────────────────────────────────────
   checkTabOutDupes();
+
+  // ── Render "Saved for Later" section ──────────────────────────────────────
+  await renderDeferredColumn();
 }
 
 
