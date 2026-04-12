@@ -2131,13 +2131,13 @@ function hideUpdateBanner() {
 }
 
 // ── Update banner event handlers ──────────────────────────────────────────────
+// Disabled - update banner removed
 
-// "Update now" button: runs git pull + npm install via POST /api/update
+/*
 document.getElementById('updateNowBtn')?.addEventListener('click', async () => {
   const btn = document.getElementById('updateNowBtn');
   if (!btn) return;
 
-  // Show loading state — disable the button so it can't be double-clicked
   const originalText = btn.textContent;
   btn.textContent = 'Updating…';
   btn.disabled = true;
@@ -2146,7 +2146,6 @@ document.getElementById('updateNowBtn')?.addEventListener('click', async () => {
     const res = await fetch('/api/update', { method: 'POST' });
 
     if (!res.ok) {
-      // HTTP error from the server (e.g. 500)
       btn.textContent = 'Update failed';
       btn.style.background = 'var(--accent-rose)';
       setTimeout(() => {
@@ -2160,20 +2159,16 @@ document.getElementById('updateNowBtn')?.addEventListener('click', async () => {
     const { success, message } = await res.json();
 
     if (success) {
-      // Success! Replace the whole banner content with a success message.
-      // The user still needs to restart the server manually.
       const bannerText = document.querySelector('.update-banner-text');
       const bannerRight = document.querySelector('.update-banner-right');
 
       if (bannerText) bannerText.textContent = message;
       if (bannerRight) {
-        // Replace the action buttons with a plain "Got it" button
         bannerRight.innerHTML = `
           <button class="update-banner-btn" onclick="hideUpdateBanner()" style="background:var(--muted)">Got it</button>
         `;
       }
     } else {
-      // The update command ran but returned an error (e.g. merge conflict)
       btn.textContent = 'Failed — see console';
       btn.style.background = 'var(--accent-rose)';
       console.error('[tab-out] Update failed:', message);
@@ -2185,7 +2180,6 @@ document.getElementById('updateNowBtn')?.addEventListener('click', async () => {
     }
 
   } catch (err) {
-    // Network error
     btn.textContent = 'Network error';
     btn.style.background = 'var(--accent-rose)';
     console.error('[tab-out] Update request failed:', err);
@@ -2197,17 +2191,16 @@ document.getElementById('updateNowBtn')?.addEventListener('click', async () => {
   }
 });
 
-// Dismiss X button: hides the banner for this session
 document.getElementById('updateBannerDismiss')?.addEventListener('click', () => {
   hideUpdateBanner();
 });
+*/
 
 
 /* ----------------------------------------------------------------
    INITIALIZE
 
    When the page loads, paint the dashboard immediately.
-   Also check quietly if an update is available.
    ---------------------------------------------------------------- */
-checkForUpdates(); // async — won't block dashboard render
+// checkForUpdates(); // Disabled - update banner removed
 renderDashboard();
