@@ -29,6 +29,9 @@ let extensionAvailable = false;
 // Track all open tabs fetched from the extension (array of tab objects)
 let openTabs = [];
 
+// Track all Chrome tab groups
+let tabGroups = [];
+
 /**
  * sendToExtension(action, data)
  *
@@ -85,6 +88,24 @@ async function fetchOpenTabs() {
   } else {
     openTabs = [];
     extensionAvailable = false;
+  }
+}
+
+/**
+ * fetchTabGroups()
+ *
+ * Asks the extension for all Chrome tab groups.
+ */
+async function fetchTabGroups() {
+  if (!extensionAvailable) {
+    tabGroups = [];
+    return;
+  }
+  const result = await sendToExtension('getTabGroups');
+  if (result && result.success && Array.isArray(result.groups)) {
+    tabGroups = result.groups;
+  } else {
+    tabGroups = [];
   }
 }
 
@@ -1089,6 +1110,66 @@ function renderArchiveItem(item) {
  * 4. Render domain cards
  * 5. Update footer stats
  */
+/**
+ * renderTabGroups()
+ *
+ * Renders Chrome tab groups in a dedicated section.
+ */
+function renderTabGroups() {
+  const section = document.getElementById('tabGroupsSection');
+  const container = document.getElementById('tabGroupsContainer');
+  const count = document.getElementById('tabGroupsSectionCount');
+
+  if (!section || !container) return;
+
+  if (tabGroups.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  const colorMap = {
+    grey: '#5f6368',
+    blue: '#1a73e8',
+    red: '#d93025',
+    yellow: '#f9ab00',
+    green: '#188038',
+    pink: '#d01884',
+    purple: '#9334e6',
+    cyan: '#007b83',
+    orange: '#e8710a'
+  };
+
+  container.innerHTML = tabGroups.map(group => `
+    <div class="mission-card" style="border-left: 4px solid ${colorMap[group.color] || '#ccc'}">
+      <div class="mission-header">
+        <div class="mission-title">
+          <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: ${colorMap[group.color] || '#ccc'}; margin-right: 8px;"></span>
+          ${group.title || 'Untitled Group'}
+        </div>
+        <div class="mission-count">${group.tabs.length} tab${group.tabs.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="mission-actions">
+        <button class="action-btn" data-action="toggle-group" data-group-id="${group.id}" data-collapsed="${group.collapsed}">
+          ${group.collapsed ? '📂 Expand' : '📁 Collapse'}
+        </button>
+        <button class="action-btn" data-action="rename-group" data-group-id="${group.id}">
+          ✏️ Rename
+        </button>
+      </div>
+      <div class="page-chips">
+        ${group.tabs.map(tab => `
+          <button class="page-chip" data-action="focus-tab" data-tab-url="${tab.url}" title="${tab.title}">
+            ${tab.title || tab.url}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  count.textContent = `${tabGroups.length} group${tabGroups.length !== 1 ? 's' : ''}`;
+  section.style.display = 'block';
+}
+
 async function renderStaticDashboard() {
   // --- Header: greeting + date ---
   const greetingEl = document.getElementById('greeting');
@@ -1099,6 +1180,9 @@ async function renderStaticDashboard() {
   // ── Step 1: Fetch open tabs ───────────────────────────────────────────────
   await fetchOpenTabs();
   const realTabs = getRealTabs();
+
+  // ── Step 2: Fetch Chrome tab groups ──────────────────────────────────────
+  await fetchTabGroups();
 
   // ── Step 3: Group open tabs by domain ────────────────────────────────────
   // This is pure JavaScript — no AI, no API calls. We extract the hostname
@@ -1185,6 +1269,9 @@ async function renderStaticDashboard() {
     return b.tabs.length - a.tabs.length;
   });
 
+  // ── Step 3.5: Render Chrome tab groups ────────────────────────────────────
+  renderTabGroups();
+
   // ── Step 4: Render domain cards ───────────────────────────────────────────
   const openTabsSection      = document.getElementById('openTabsSection');
   const openTabsMissionsEl   = document.getElementById('openTabsMissions');
@@ -1257,6 +1344,31 @@ document.addEventListener('click', async (e) => {
       setTimeout(() => { banner.style.display = 'none'; banner.style.opacity = '1'; }, 400);
     }
     showToast('Closed extra Tab Out tabs');
+    return;
+  }
+
+  // --- Toggle tab group collapsed state ---
+  if (action === 'toggle-group') {
+    const groupId = parseInt(actionEl.dataset.groupId);
+    const collapsed = actionEl.dataset.collapsed === 'true';
+    await sendToExtension('updateTabGroup', { groupId, properties: { collapsed: !collapsed } });
+    await fetchTabGroups();
+    renderTabGroups();
+    showToast(collapsed ? 'Group expanded' : 'Group collapsed');
+    return;
+  }
+
+  // --- Rename tab group ---
+  if (action === 'rename-group') {
+    const groupId = parseInt(actionEl.dataset.groupId);
+    const group = tabGroups.find(g => g.id === groupId);
+    const newTitle = prompt('Enter new group title:', group?.title || '');
+    if (newTitle !== null && newTitle !== group?.title) {
+      await sendToExtension('updateTabGroup', { groupId, properties: { title: newTitle } });
+      await fetchTabGroups();
+      renderTabGroups();
+      showToast('Group renamed');
+    }
     return;
   }
 
