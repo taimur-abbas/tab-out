@@ -1632,24 +1632,20 @@ document.addEventListener('click', async (e) => {
 
     // Close the tab in the browser
     await sendToExtension('closeTabs', { urls: [tabUrl] });
+
+    // Small delay to ensure Chrome has processed the close
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    // Fetch updated data from Chrome
     await fetchOpenTabs();
-
-    // Animate the chip out
-    const chip = actionEl.closest('.page-chip');
-    if (chip) {
-      chip.style.transition = 'opacity 0.2s, transform 0.2s';
-      chip.style.opacity = '0';
-      chip.style.transform = 'scale(0.8)';
-      setTimeout(() => chip.remove(), 200);
-    }
-
-    showToast('Saved for later');
-
-    // Refresh all sections to remove the saved tab from groups/ungrouped
     await fetchTabGroups();
+
+    // Render all sections with updated data
     renderTabGroups();
     renderUngroupedTabs();
     await renderDeferredColumn();
+
+    showToast('Saved for later');
     return;
   }
 
