@@ -1216,29 +1216,29 @@ function renderUngroupedTabs() {
   );
 
   if (ungroupedTabs.length === 0) {
-    column.style.display = 'none';
-    return;
+    list.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--muted); font-size: 13px;">All tabs are grouped 🎉</div>';
+    countEl.textContent = '0 tabs';
+  } else {
+    list.innerHTML = ungroupedTabs.map(tab => `
+      <div class="deferred-item draggable-tab"
+           draggable="true"
+           data-tab-id="${tab.id}"
+           style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin: 4px 0; cursor: move;">
+        <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" data-action="focus-tab" data-tab-url="${tab.url}">
+          <div style="font-size: 13px; font-weight: 500;">⋮⋮ ${tab.title || 'Untitled'}</div>
+          <div style="font-size: 11px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis;">${tab.url}</div>
+        </div>
+        <button class="action-btn" data-action="defer-single-tab" data-tab-url="${tab.url}" data-tab-title="${tab.title}" title="Save for later" style="margin-left: 8px; padding: 4px 8px; font-size: 11px;">
+          ${ICONS.save}
+        </button>
+        <button class="action-btn close-btn" data-action="close-ungrouped-tab" data-tab-id="${tab.id}" style="margin-left: 4px; padding: 4px 8px; font-size: 11px;">
+          ${ICONS.close}
+        </button>
+      </div>
+    `).join('');
+    countEl.textContent = `${ungroupedTabs.length} tab${ungroupedTabs.length !== 1 ? 's' : ''}`;
   }
 
-  list.innerHTML = ungroupedTabs.map(tab => `
-    <div class="deferred-item draggable-tab"
-         draggable="true"
-         data-tab-id="${tab.id}"
-         style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin: 4px 0; cursor: move;">
-      <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" data-action="focus-tab" data-tab-url="${tab.url}">
-        <div style="font-size: 13px; font-weight: 500;">⋮⋮ ${tab.title || 'Untitled'}</div>
-        <div style="font-size: 11px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis;">${tab.url}</div>
-      </div>
-      <button class="action-btn" data-action="defer-single-tab" data-tab-url="${tab.url}" data-tab-title="${tab.title}" title="Save for later" style="margin-left: 8px; padding: 4px 8px; font-size: 11px;">
-        ${ICONS.save}
-      </button>
-      <button class="action-btn close-btn" data-action="close-ungrouped-tab" data-tab-id="${tab.id}" style="margin-left: 4px; padding: 4px 8px; font-size: 11px;">
-        ${ICONS.close}
-      </button>
-    </div>
-  `).join('');
-
-  countEl.textContent = `${ungroupedTabs.length} tab${ungroupedTabs.length !== 1 ? 's' : ''}`;
   column.style.display = 'block';
 }
 
