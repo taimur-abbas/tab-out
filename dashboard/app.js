@@ -1474,6 +1474,71 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  // --- Create new tab group ---
+  if (action === 'create-group') {
+    // Get ungrouped tabs
+    const groupedTabIds = new Set();
+    tabGroups.forEach(group => {
+      group.tabs.forEach(tab => groupedTabIds.add(tab.id));
+    });
+    const ungroupedTabs = openTabs.filter(tab =>
+      !groupedTabIds.has(tab.id) &&
+      !tab.isTabOut &&
+      tab.url &&
+      !tab.url.startsWith('chrome://')
+    );
+
+    if (ungroupedTabs.length === 0) {
+      showToast('No ungrouped tabs available');
+      return;
+    }
+
+    // Prompt for group name
+    const groupName = prompt('Enter group name:', 'New Group');
+    if (!groupName) return;
+
+    // Prompt for color
+    const colorOptions = ['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'];
+    const colorChoice = prompt(
+      `Choose color:\n${colorOptions.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n\nEnter 1-9:`,
+      '2'
+    );
+    const colorIndex = parseInt(colorChoice) - 1;
+    const color = colorOptions[colorIndex] || 'blue';
+
+    // Prompt for how many tabs to include
+    const maxTabs = Math.min(ungroupedTabs.length, 10);
+    const tabCount = prompt(
+      `How many ungrouped tabs to include?\n(Available: ${ungroupedTabs.length})`,
+      Math.min(3, ungroupedTabs.length).toString()
+    );
+    const numTabs = parseInt(tabCount) || 3;
+    const tabsToGroup = ungroupedTabs.slice(0, Math.min(numTabs, ungroupedTabs.length));
+
+    if (tabsToGroup.length === 0) {
+      showToast('No tabs selected');
+      return;
+    }
+
+    // Create the group
+    const tabIds = tabsToGroup.map(t => t.id);
+    const result = await sendToExtension('createTabGroup', {
+      tabIds,
+      properties: { title: groupName, color, collapsed: false }
+    });
+
+    if (result.success) {
+      await fetchTabGroups();
+      await fetchOpenTabs();
+      renderTabGroups();
+      renderUngroupedTabs();
+      showToast(`Created "${groupName}" with ${tabsToGroup.length} tabs`);
+    } else {
+      showToast('Failed to create group');
+    }
+    return;
+  }
+
   // Find the card element so we can animate it
   const card = actionEl.closest('.mission-card');
 
