@@ -71,13 +71,12 @@
 
   <!-- ================================================================
        MAIN CONTENT AREA — two-column layout
-       Left: open tabs (domain/mission cards)
-       Right: saved for later checklist
-       The right column only renders when it has items (JS controls this)
+       Left: Chrome tab groups
+       Right: Ungrouped tabs
        ================================================================ -->
   <div class="dashboard-columns" id="dashboardColumns">
 
-    <!-- CHROME TAB GROUPS SECTION -->
+    <!-- LEFT COLUMN: Chrome Tab Groups -->
     <div class="active-section" id="tabGroupsSection" style="display:none">
       <div class="section-header">
         <h2>Tab Groups</h2>
@@ -87,7 +86,17 @@
       <div class="tab-groups" id="tabGroupsContainer"></div>
     </div>
 
-    <!-- LEFT COLUMN: Open tabs -->
+    <!-- RIGHT COLUMN: Ungrouped Tabs -->
+    <div class="deferred-column" id="ungroupedColumn" style="display:none">
+      <div class="section-header">
+        <h2>Ungrouped Tabs</h2>
+        <div class="section-line"></div>
+        <div class="section-count" id="ungroupedCount"></div>
+      </div>
+      <div class="ungrouped-list" id="ungroupedList"></div>
+    </div>
+
+    <!-- OLD SECTIONS (hidden for now) -->
     <div class="active-section" id="openTabsSection" style="display:none">
       <div class="section-header">
         <h2 id="openTabsSectionTitle">Right now</h2>
@@ -97,7 +106,6 @@
       <div class="missions" id="openTabsMissions"></div>
     </div>
 
-    <!-- RIGHT COLUMN: Saved for Later checklist -->
     <div class="deferred-column" id="deferredColumn" style="display:none">
       <div class="section-header">
         <h2>Saved for later</h2>

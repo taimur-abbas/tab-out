@@ -1113,7 +1113,7 @@ function renderArchiveItem(item) {
 /**
  * renderTabGroups()
  *
- * Renders Chrome tab groups in a dedicated section.
+ * Renders Chrome tab groups in a dedicated section with tabs listed.
  */
 function renderTabGroups() {
   const section = document.getElementById('tabGroupsSection');
@@ -1140,27 +1140,34 @@ function renderTabGroups() {
   };
 
   container.innerHTML = tabGroups.map(group => `
-    <div class="mission-card" style="border-left: 4px solid ${colorMap[group.color] || '#ccc'}">
-      <div class="mission-header">
+    <div class="mission-card" style="border-left: 4px solid ${colorMap[group.color] || '#ccc'}; margin-bottom: 16px;">
+      <div class="mission-header" style="cursor: pointer;" data-action="toggle-group" data-group-id="${group.id}" data-collapsed="${group.collapsed}">
         <div class="mission-title">
           <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: ${colorMap[group.color] || '#ccc'}; margin-right: 8px;"></span>
           ${group.title || 'Untitled Group'}
+          <span style="margin-left: 8px; font-size: 11px; opacity: 0.6;">${group.collapsed ? '▶' : '▼'}</span>
         </div>
         <div class="mission-count">${group.tabs.length} tab${group.tabs.length !== 1 ? 's' : ''}</div>
       </div>
       <div class="mission-actions">
-        <button class="action-btn" data-action="toggle-group" data-group-id="${group.id}" data-collapsed="${group.collapsed}">
-          ${group.collapsed ? '📂 Expand' : '📁 Collapse'}
-        </button>
         <button class="action-btn" data-action="rename-group" data-group-id="${group.id}">
           ✏️ Rename
         </button>
+        <button class="action-btn" data-action="ungroup-all" data-group-id="${group.id}">
+          Ungroup All
+        </button>
       </div>
-      <div class="page-chips">
+      <div class="group-tabs-list" style="display: ${group.collapsed ? 'none' : 'block'}; margin-top: 12px;">
         ${group.tabs.map(tab => `
-          <button class="page-chip" data-action="focus-tab" data-tab-url="${tab.url}" title="${tab.title}">
-            ${tab.title || tab.url}
-          </button>
+          <div class="deferred-item" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin: 4px 0; background: var(--card-bg); border-radius: 6px;">
+            <div style="flex: 1; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" data-action="focus-tab" data-tab-url="${tab.url}">
+              <div style="font-size: 13px; font-weight: 500;">${tab.title || 'Untitled'}</div>
+              <div style="font-size: 11px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis;">${tab.url}</div>
+            </div>
+            <button class="action-btn close-btn" data-action="close-tab-from-group" data-tab-id="${tab.id}" style="margin-left: 8px; padding: 4px 8px; font-size: 11px;">
+              ${ICONS.close}
+            </button>
+          </div>
         `).join('')}
       </div>
     </div>
@@ -1168,6 +1175,53 @@ function renderTabGroups() {
 
   count.textContent = `${tabGroups.length} group${tabGroups.length !== 1 ? 's' : ''}`;
   section.style.display = 'block';
+}
+
+/**
+ * renderUngroupedTabs()
+ *
+ * Renders tabs that are not in any Chrome tab group.
+ */
+function renderUngroupedTabs() {
+  const column = document.getElementById('ungroupedColumn');
+  const list = document.getElementById('ungroupedList');
+  const countEl = document.getElementById('ungroupedCount');
+
+  if (!column || !list) return;
+
+  // Get all tab IDs that are in groups
+  const groupedTabIds = new Set();
+  tabGroups.forEach(group => {
+    group.tabs.forEach(tab => groupedTabIds.add(tab.id));
+  });
+
+  // Filter out tabs that are in groups or are Tab Out tabs
+  const ungroupedTabs = openTabs.filter(tab =>
+    !groupedTabIds.has(tab.id) &&
+    !tab.isTabOut &&
+    tab.url &&
+    !tab.url.startsWith('chrome://')
+  );
+
+  if (ungroupedTabs.length === 0) {
+    column.style.display = 'none';
+    return;
+  }
+
+  list.innerHTML = ungroupedTabs.map(tab => `
+    <div class="deferred-item" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin: 4px 0;">
+      <div style="flex: 1; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" data-action="focus-tab" data-tab-url="${tab.url}">
+        <div style="font-size: 13px; font-weight: 500;">${tab.title || 'Untitled'}</div>
+        <div style="font-size: 11px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis;">${tab.url}</div>
+      </div>
+      <button class="action-btn close-btn" data-action="close-ungrouped-tab" data-tab-id="${tab.id}" style="margin-left: 8px; padding: 4px 8px; font-size: 11px;">
+        ${ICONS.close}
+      </button>
+    </div>
+  `).join('');
+
+  countEl.textContent = `${ungroupedTabs.length} tab${ungroupedTabs.length !== 1 ? 's' : ''}`;
+  column.style.display = 'block';
 }
 
 async function renderStaticDashboard() {
@@ -1271,23 +1325,13 @@ async function renderStaticDashboard() {
 
   // ── Step 3.5: Render Chrome tab groups ────────────────────────────────────
   renderTabGroups();
+  renderUngroupedTabs();
 
-  // ── Step 4: Render domain cards ───────────────────────────────────────────
-  const openTabsSection      = document.getElementById('openTabsSection');
-  const openTabsMissionsEl   = document.getElementById('openTabsMissions');
-  const openTabsSectionCount = document.getElementById('openTabsSectionCount');
-  const openTabsSectionTitle = document.getElementById('openTabsSectionTitle');
-
-  if (domainGroups.length > 0 && openTabsSection) {
-    if (openTabsSectionTitle) openTabsSectionTitle.textContent = 'Open tabs';
-    openTabsSectionCount.innerHTML = `${domainGroups.length} domain${domainGroups.length !== 1 ? 's' : ''} &nbsp;&middot;&nbsp; <button class="action-btn close-tabs" data-action="close-all-open-tabs" style="font-size:11px;padding:3px 10px;">${ICONS.close} Close all ${realTabs.length} tabs</button>`;
-    openTabsMissionsEl.innerHTML = domainGroups
-      .map((g, idx) => renderDomainCard(g, idx))
-      .join('');
-    openTabsSection.style.display = 'block';
-  } else if (openTabsSection) {
-    openTabsSection.style.display = 'none';
-  }
+  // ── Hide old sections (domain cards and saved for later) ──────────────────
+  const openTabsSection = document.getElementById('openTabsSection');
+  const deferredColumn = document.getElementById('deferredColumn');
+  if (openTabsSection) openTabsSection.style.display = 'none';
+  if (deferredColumn) deferredColumn.style.display = 'none';
 
   // ── Footer stats ──────────────────────────────────────────────────────────
   const statTabs = document.getElementById('statTabs');
@@ -1295,9 +1339,6 @@ async function renderStaticDashboard() {
 
   // ── Check for duplicate Tab Out tabs ────────────────────────────────────
   checkTabOutDupes();
-
-  // ── Step 9: Render the "Saved for Later" checklist column ────────────────
-  await renderDeferredColumn();
 }
 
 
@@ -1368,6 +1409,54 @@ document.addEventListener('click', async (e) => {
       await fetchTabGroups();
       renderTabGroups();
       showToast('Group renamed');
+    }
+    return;
+  }
+
+  // --- Close tab from group ---
+  if (action === 'close-tab-from-group') {
+    const tabId = parseInt(actionEl.dataset.tabId);
+    const tab = openTabs.find(t => t.id === tabId);
+    if (tab) {
+      await sendToExtension('closeTabs', { urls: [tab.url] });
+      playCloseSound();
+      await fetchOpenTabs();
+      await fetchTabGroups();
+      renderTabGroups();
+      renderUngroupedTabs();
+      showToast('Tab closed');
+    }
+    return;
+  }
+
+  // --- Close ungrouped tab ---
+  if (action === 'close-ungrouped-tab') {
+    const tabId = parseInt(actionEl.dataset.tabId);
+    const tab = openTabs.find(t => t.id === tabId);
+    if (tab) {
+      await sendToExtension('closeTabs', { urls: [tab.url] });
+      playCloseSound();
+      await fetchOpenTabs();
+      await fetchTabGroups();
+      renderTabGroups();
+      renderUngroupedTabs();
+      showToast('Tab closed');
+    }
+    return;
+  }
+
+  // --- Ungroup all tabs in a group ---
+  if (action === 'ungroup-all') {
+    const groupId = parseInt(actionEl.dataset.groupId);
+    const group = tabGroups.find(g => g.id === groupId);
+    if (group) {
+      const tabIds = group.tabs.map(t => t.id);
+      await sendToExtension('ungroupTabs', { tabIds });
+      await fetchTabGroups();
+      await fetchOpenTabs();
+      renderTabGroups();
+      renderUngroupedTabs();
+      showToast('Tabs ungrouped');
     }
     return;
   }
