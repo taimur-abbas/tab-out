@@ -1361,7 +1361,7 @@ async function renderStaticDashboard() {
   if (statTabs) statTabs.textContent = openTabs.length;
 
   // ── Check for duplicate Tab Out tabs ────────────────────────────────────
-  checkTabOutDupes();
+  // checkTabOutDupes(); // Disabled - banner removed
 
   // ── Render "Saved for Later" section ──────────────────────────────────────
   await renderDeferredColumn();
