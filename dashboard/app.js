@@ -1167,9 +1167,12 @@ function renderTabGroups() {
       </div>
       <div class="group-tabs-list" style="display: ${isCollapsed ? 'none' : 'block'}; margin-top: 12px;">
         ${group.tabs.map(tab => `
-          <div class="deferred-item" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin: 4px 0; background: var(--card-bg); border-radius: 6px;">
-            <div style="flex: 1; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" data-action="focus-tab" data-tab-url="${tab.url}">
-              <div style="font-size: 13px; font-weight: 500;">${tab.title || 'Untitled'}</div>
+          <div class="deferred-item draggable-tab"
+               draggable="true"
+               data-tab-id="${tab.id}"
+               style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin: 4px 0; background: var(--card-bg); border-radius: 6px; cursor: move;">
+            <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" data-action="focus-tab" data-tab-url="${tab.url}">
+              <div style="font-size: 13px; font-weight: 500;">⋮⋮ ${tab.title || 'Untitled'}</div>
               <div style="font-size: 11px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis;">${tab.url}</div>
             </div>
             <button class="action-btn" data-action="defer-single-tab" data-tab-url="${tab.url}" data-tab-title="${tab.title}" title="Save for later" style="margin-left: 8px; padding: 4px 8px; font-size: 11px;">
@@ -1222,8 +1225,12 @@ function renderUngroupedTabs() {
     !tab.url.startsWith('chrome://')
   );
 
+  // Mark the list as an ungroup drop zone
+  list.classList.add('ungroup-zone');
+  list.dataset.ungroupZone = 'true';
+
   if (ungroupedTabs.length === 0) {
-    list.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--muted); font-size: 13px;">All tabs are grouped 🎉</div>';
+    list.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--muted); font-size: 13px;">All tabs are grouped 🎉<br/><span style="font-size: 11px; opacity: 0.5; margin-top: 8px; display: block;">Drag grouped tabs here to ungroup</span></div>';
     countEl.textContent = '0 tabs';
   } else {
     list.innerHTML = ungroupedTabs.map(tab => `
@@ -1510,32 +1517,17 @@ document.addEventListener('click', async (e) => {
       return;
     }
 
-    // Prompt for group name
+    // Prompt for group name only
     const groupName = prompt('Enter group name:', 'New Group');
     if (!groupName) return;
 
-    // Prompt for color
+    // Auto-select color (rotate through colors based on existing groups)
     const colorOptions = ['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'];
-    const colorChoice = prompt(
-      `Choose color:\n${colorOptions.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n\nEnter 1-9:`,
-      '2'
-    );
-    const colorIndex = parseInt(colorChoice) - 1;
-    const color = colorOptions[colorIndex] || 'blue';
+    const colorIndex = tabGroups.length % colorOptions.length;
+    const color = colorOptions[colorIndex];
 
-    // Prompt for how many tabs to include
-    const maxTabs = Math.min(ungroupedTabs.length, 10);
-    const tabCount = prompt(
-      `How many ungrouped tabs to include?\n(Available: ${ungroupedTabs.length})`,
-      Math.min(3, ungroupedTabs.length).toString()
-    );
-    const numTabs = parseInt(tabCount) || 3;
-    const tabsToGroup = ungroupedTabs.slice(0, Math.min(numTabs, ungroupedTabs.length));
-
-    if (tabsToGroup.length === 0) {
-      showToast('No tabs selected');
-      return;
-    }
+    // Always use only 1 most recent tab (last in the array)
+    const tabsToGroup = [ungroupedTabs[ungroupedTabs.length - 1]];
 
     // Create the group
     const tabIds = tabsToGroup.map(t => t.id);
@@ -1549,7 +1541,7 @@ document.addEventListener('click', async (e) => {
       await fetchOpenTabs();
       renderTabGroups();
       renderUngroupedTabs();
-      showToast(`Created "${groupName}" with ${tabsToGroup.length} tabs`);
+      showToast(`Created "${groupName}"`);
     } else {
       showToast('Failed to create group');
     }
@@ -1940,42 +1932,74 @@ document.addEventListener('dragend', (e) => {
 
 // Allow dropping by preventing default
 document.addEventListener('dragover', (e) => {
+  if (!draggedTabId) return;
+
   const dropZone = e.target.closest('.drop-zone');
-  if (!dropZone || !draggedTabId) return;
+  const ungroupZone = e.target.closest('.ungroup-zone');
+
+  if (!dropZone && !ungroupZone) return;
 
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
 
-  // Highlight the drop zone
-  dropZone.style.backgroundColor = 'rgba(29, 122, 232, 0.1)';
-  dropZone.style.transform = 'scale(1.02)';
+  // Highlight the appropriate zone
+  if (ungroupZone) {
+    ungroupZone.style.backgroundColor = 'rgba(232, 113, 10, 0.1)'; // Orange tint for ungroup
+    ungroupZone.style.transform = 'scale(1.02)';
+  } else if (dropZone) {
+    dropZone.style.backgroundColor = 'rgba(29, 122, 232, 0.1)'; // Blue tint for group
+    dropZone.style.transform = 'scale(1.02)';
+  }
 });
 
 // Remove highlight when dragging leaves
 document.addEventListener('dragleave', (e) => {
   const dropZone = e.target.closest('.drop-zone');
-  if (!dropZone) return;
+  const ungroupZone = e.target.closest('.ungroup-zone');
+  const zone = dropZone || ungroupZone;
 
-  // Only remove highlight if we're actually leaving the drop zone
-  const rect = dropZone.getBoundingClientRect();
+  if (!zone) return;
+
+  // Only remove highlight if we're actually leaving the zone
+  const rect = zone.getBoundingClientRect();
   if (e.clientX < rect.left || e.clientX >= rect.right ||
       e.clientY < rect.top || e.clientY >= rect.bottom) {
-    dropZone.style.backgroundColor = '';
-    dropZone.style.transform = '';
+    zone.style.backgroundColor = '';
+    zone.style.transform = '';
   }
 });
 
 // Handle the drop
 document.addEventListener('drop', async (e) => {
+  if (!draggedTabId) return;
+
+  // Check if dropping on a group (to add tab to group)
   const dropZone = e.target.closest('.drop-zone');
-  if (!dropZone || !draggedTabId) return;
+  // Check if dropping on ungroup zone (to ungroup tab)
+  const ungroupZone = e.target.closest('.ungroup-zone');
+
+  if (!dropZone && !ungroupZone) return;
 
   e.preventDefault();
 
-  const groupId = parseInt(dropZone.dataset.groupId);
+  if (ungroupZone) {
+    // Ungroup the tab
+    await sendToExtension('ungroupTabs', { tabIds: [draggedTabId] });
+    showToast('Tab ungrouped');
 
-  // Add the tab to the group
-  await sendToExtension('groupTabs', { tabIds: [draggedTabId], groupId });
+    // Reset styles
+    ungroupZone.style.backgroundColor = '';
+    ungroupZone.style.transform = '';
+  } else if (dropZone) {
+    // Add the tab to the group
+    const groupId = parseInt(dropZone.dataset.groupId);
+    await sendToExtension('groupTabs', { tabIds: [draggedTabId], groupId });
+    showToast('Tab added to group');
+
+    // Reset styles
+    dropZone.style.backgroundColor = '';
+    dropZone.style.transform = '';
+  }
 
   // Refresh the UI
   await fetchTabGroups();
@@ -1983,11 +2007,6 @@ document.addEventListener('drop', async (e) => {
   renderTabGroups();
   renderUngroupedTabs();
 
-  showToast('Tab added to group');
-
-  // Reset styles
-  dropZone.style.backgroundColor = '';
-  dropZone.style.transform = '';
   draggedTabId = null;
 });
 
