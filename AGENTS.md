@@ -1,40 +1,40 @@
-# AGENTS.md -- Tab Out: Setup & Onboarding Guide for Coding Agents
+# AGENTS.md - Tab Out: Setup & Onboarding Guide for Coding Agents
 
-You're installing **Tab Out** for the user. Your job is not just to set it up -- it's to get them excited about using it. Explain what it does, why it's useful, and walk them through the experience.
+You're installing **Tab Out** for the user. Your job is not just to set it up - it's to get them excited about using it. Explain what it does, why it's useful, and walk them through the experience.
 
 ---
 
-## Step 0 -- Introduce the product
+## Step 0 - Introduce the product
 
 Before doing anything technical, tell the user what they're about to get. Say something like:
 
-> **Tab Out** replaces your new tab page with a clean dashboard that shows everything you have open -- grouped by domain, with landing pages pulled into their own group for easy cleanup.
+> **Tab Out** replaces your new tab page with a clean dashboard that integrates with Chrome's native tab groups. It gives you a two-column view: your tab groups on the left, ungrouped tabs on the right.
 >
 > Here's what makes it great:
-> - **See all your open tabs at a glance** -- grouped by domain, no scrolling through 30+ tiny tabs
-> - **Landing pages group** -- homepages and feeds (Gmail, X, LinkedIn, GitHub, YouTube) are grouped into one card you can close with one click
-> - **Close tabs with style** -- satisfying swoosh sound + confetti burst when you clean up a group. Makes tab cleanup feel like a reward, not a chore.
-> - **Duplicate detection** -- flags when you have the same page open twice (we've all been there)
-> - **Click any tab title to jump to it** -- even across different Chrome windows
-> - **Save for later** -- bookmark individual tabs to a checklist before closing them
-> - **100% local** -- your browsing data never leaves your machine. No AI, no external API calls.
-> - **Always on** -- starts automatically when you log in, runs silently in the background
+> - **Chrome tab groups integration** - Uses Chrome's native groups, syncs both ways
+> - **Simple group creation** - Just type a name, color auto-rotates, adds 1 most recent tab
+> - **Drag-and-drop organization** - Drag ungrouped tabs into groups, or drag grouped tabs back out
+> - **Visual feedback** - Blue highlight when grouping, orange when ungrouping
+> - **Click any tab to jump to it** - Even across different Chrome windows
+> - **Save for later** - Bookmark individual tabs to a checklist before closing them
+> - **100% local** - Your browsing data never leaves your machine
+> - **Always on** - Starts automatically when you log in, runs silently in the background
 >
-> Let's set it up -- takes about 2 minutes.
+> Let's set it up - takes about 2 minutes.
 
 ---
 
-## Step 1 -- Clone and install
+## Step 1 - Clone and install
 
 ```bash
-git clone https://github.com/zarazhangrui/tab-out.git
+git clone https://github.com/taimur-abbas/tab-out.git
 cd tab-out
 npm install
 ```
 
 ---
 
-## Step 2 -- Write the config
+## Step 2 - Write the config
 
 Create `~/.mission-control/config.json`:
 
@@ -46,7 +46,7 @@ Create `~/.mission-control/config.json`:
 
 ---
 
-## Step 3 -- Run the setup script
+## Step 3 - Run the setup script
 
 ```bash
 npm run install-service
@@ -56,7 +56,7 @@ This creates data/logs directories and installs a platform-specific auto-start s
 
 ---
 
-## Step 4 -- Install the Chrome extension
+## Step 4 - Install the Chrome extension
 
 This is the one step that requires manual action from the user. Make it as easy as possible:
 
@@ -82,7 +82,7 @@ open "chrome://extensions"
 > 1. You should see Chrome's extensions page. In the **top-right corner**, toggle on **Developer mode** (it's a switch).
 > 2. Once Developer mode is on, you'll see a button called **"Load unpacked"** appear in the top-left. Click it.
 > 3. A file picker will open. **Press Cmd+Shift+G** (Mac) or **Ctrl+L** (Windows/Linux) to open the "Go to folder" bar, then **paste** the path I copied (Cmd+V / Ctrl+V) and press Enter.
-> 4. Click **"Select"** or **"Open"** -- the extension will install immediately.
+> 4. Click **"Select"** or **"Open"** - the extension will install immediately.
 >
 > You should see "Tab Out" appear in your extensions list.
 
@@ -95,7 +95,7 @@ This way the user can also just drag or navigate to it visually if the clipboard
 
 ---
 
-## Step 5 -- Start, verify, and show them around
+## Step 5 - Start, verify, and show them around
 
 ```bash
 npm start &
@@ -107,13 +107,22 @@ Once the dashboard loads, walk them through the experience:
 
 > You're all set! Here's how to use Tab Out:
 >
-> 1. **Open a new tab** -- you'll see your open tabs grouped by domain, with landing pages (Gmail, X, etc.) at the top.
-> 2. **Click any tab title** to jump directly to that tab (no new tab opened).
-> 3. **Click "Close all N tabs"** on any group to clean up -- you'll hear a swoosh and see confetti.
-> 4. **Duplicate tabs** are flagged with an amber badge. Click "Close duplicates" to keep just one copy.
-> 5. **Save individual tabs for later** by clicking the bookmark icon before closing.
+> **Creating groups:**
+> 1. Click "➕ Create Group" at the bottom of the Tab Groups column
+> 2. Enter a group name (color auto-selects, adds 1 most recent tab)
+> 3. The group appears in the left column
 >
-> The server runs automatically in the background -- you never need to start it again. Every new tab is now your dashboard.
+> **Organizing tabs:**
+> 1. Drag any ungrouped tab (right column) into a group - you'll see a blue highlight
+> 2. Drag a grouped tab back to the ungrouped section - you'll see an orange highlight
+> 3. Click "Ungroup All" to remove all tabs from a group
+>
+> **Other actions:**
+> 1. Click any tab title to jump directly to that tab (no new tab opened)
+> 2. Save individual tabs for later by clicking the bookmark icon
+> 3. Rename groups by clicking the "✏️ Rename" button
+>
+> The server runs automatically in the background - you never need to start it again. Every new tab is now your dashboard.
 
 ---
 
@@ -123,4 +132,5 @@ Once the dashboard loads, walk them through the experience:
 - Logs: `~/.mission-control/logs/`
 - Default port: `3456`
 - Auto-starts on login (macOS Launch Agent / Linux systemd / Windows Startup)
-- 100% local -- no data is sent to any external service
+- 100% local - no data is sent to any external service
+- Uses Chrome Tab Groups API for native integration

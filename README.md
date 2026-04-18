@@ -2,9 +2,48 @@
 
 **Keep tabs on your tabs.**
 
-Tab Out replaces your Chrome new tab page with a dashboard that shows everything you have open -- grouped by domain, with landing pages (Gmail, X, LinkedIn, etc.) pulled into their own group for easy cleanup. Close tabs with a satisfying swoosh + confetti.
+Tab Out replaces your Chrome new tab page with a dashboard that integrates with Chrome's native tab groups. Organize your tabs, drag-and-drop to group/ungroup, and keep your browser clean.
 
-Built for people who open too many tabs and never close them.
+Built for people who want better tab organization without the complexity.
+
+> **Note:** This is a fork of [zarazhangrui/tab-out](https://github.com/zarazhangrui/tab-out) with a focus on Chrome tab groups integration instead of domain-based grouping.
+
+---
+
+## What's Different in This Fork
+
+This version has been redesigned around Chrome's native tab groups:
+
+**Added:**
+- Full Chrome tab groups integration (create, rename, color, collapse)
+- Drag-and-drop to move tabs into groups
+- Drag-to-ungroup (drag grouped tabs back to ungrouped)
+- Simplified group creation (just enter name, auto-selects color, uses 1 most recent tab)
+- Groups default to expanded
+- Two-column layout (Tab Groups | Ungrouped Tabs)
+
+**Removed:**
+- Domain-based grouping
+- Landing pages group
+- Swoosh sound and confetti animations
+- Duplicate detection
+- Update notifications
+
+If you want the original version with domain grouping and confetti, see [Zara's original repo](https://github.com/zarazhangrui/tab-out).
+
+---
+
+## Features
+
+- **Chrome tab groups integration** - Uses Chrome's native tab groups, syncs both ways
+- **Simple group creation** - Just type a group name, color auto-rotates, adds 1 most recent tab
+- **Drag-and-drop grouping** - Drag ungrouped tabs into any group
+- **Drag-to-ungroup** - Drag tabs from groups back to ungrouped section
+- **Visual feedback** - Blue highlight when grouping, orange when ungrouping
+- **Click to focus** - Click any tab to switch to it, even across windows
+- **Save for later** - Bookmark tabs to a checklist before closing
+- **100% local** - Your browsing data never leaves your machine
+- **Always on** - Starts automatically when you log in
 
 ---
 
@@ -13,37 +52,21 @@ Built for people who open too many tabs and never close them.
 Send your coding agent (Claude Code, Cursor, Windsurf, etc.) this repo and say **"install this"**:
 
 ```
-https://github.com/zarazhangrui/tab-out
+https://github.com/taimur-abbas/tab-out
 ```
 
 The agent will explain what Tab Out does and set everything up. Takes about 2 minutes.
 
 ---
 
-## Features
-
-- **See all your tabs at a glance** -- grouped by domain on a clean grid, no more squinting at 30 tiny tab titles
-- **Landing pages group** -- homepages and feeds (Gmail, X, LinkedIn, GitHub, YouTube) are pulled into one card so you can close them all at once
-- **Close tabs with style** -- swoosh sound + confetti burst when you clean up a group. Makes tab hygiene feel rewarding
-- **Duplicate detection** -- flags when you have the same page open twice, with one-click cleanup
-- **Click any tab to jump to it** -- switches to the existing tab, even across windows
-- **Save for later** -- bookmark individual tabs to a checklist before closing them
-- **Tab Out dupe detection** -- notices when you have extra new tab pages open and offers to close them
-- **Expandable groups** -- large groups show the first 8 tabs with a clickable "+N more" to reveal the rest
-- **Auto-updates** -- get notified when a new version is available, update with one click
-- **100% local** -- your browsing data never leaves your machine. No AI, no external API calls
-- **Always on** -- starts automatically when you log in, runs silently in the background
-
----
-
 ## Manual Setup
 
-If you prefer to set things up yourself instead of using a coding agent:
+If you prefer to set things up yourself:
 
 **1. Clone and install**
 
 ```bash
-git clone https://github.com/zarazhangrui/tab-out.git
+git clone https://github.com/taimur-abbas/tab-out.git
 cd tab-out
 npm install
 ```
@@ -69,7 +92,27 @@ This creates `~/.mission-control/`, writes a default config, and installs an aut
 npm start
 ```
 
-Open a new tab -- you'll see Tab Out. The server auto-starts on future logins.
+Open a new tab - you'll see Tab Out. The server auto-starts on future logins.
+
+---
+
+## How to Use
+
+**Create a new group:**
+1. Click "➕ Create Group" at the bottom of Tab Groups section
+2. Enter a group name (color auto-selects, adds 1 most recent tab)
+3. Drag more tabs into the group as needed
+
+**Organize tabs:**
+- Drag ungrouped tabs into any group (blue highlight)
+- Drag grouped tabs to ungrouped section (orange highlight)
+- Click tab titles to switch to that tab
+- Use "Ungroup All" to remove all tabs from a group
+
+**Save for later:**
+- Click the bookmark icon on any tab
+- Saved tabs appear in "Saved for later" section
+- Check them off as you complete them
 
 ---
 
@@ -88,13 +131,13 @@ Config lives at `~/.mission-control/config.json`:
 ```
 You open a new tab
   -> Chrome extension loads Tab Out in an iframe
-  -> Dashboard shows your open tabs grouped by domain
-  -> Landing pages (Gmail, X, LinkedIn, etc.) get their own group at the top
-  -> You close groups you're done with (swoosh + confetti)
+  -> Dashboard shows your Chrome tab groups + ungrouped tabs
+  -> You organize tabs by dragging them into groups
+  -> Chrome's native tab groups stay in sync
   -> Repeat
 ```
 
-The server runs silently in the background. It starts on login and restarts if it crashes. You never think about it.
+The server runs silently in the background. It starts on login and restarts if it crashes.
 
 ---
 
@@ -104,17 +147,20 @@ The server runs silently in the background. It starts on login and restarts if i
 |------|-----|
 | Server | Node.js + Express |
 | Database | better-sqlite3 (local SQLite) |
-| Extension | Chrome Manifest V3 |
+| Extension | Chrome Manifest V3 with Tab Groups API |
 | Auto-start | macOS Launch Agent / Linux systemd / Windows Startup |
-| Sound | Web Audio API (synthesized, no files) |
-| Animations | CSS transitions + JS confetti particles |
+| UI | Vanilla JS + CSS (no framework) |
+
+---
+
+## Credits
+
+Original project by [Zara Zhang](https://x.com/zarazhangrui) - [zarazhangrui/tab-out](https://github.com/zarazhangrui/tab-out)
+
+This fork maintains the core architecture while focusing on Chrome tab groups integration.
 
 ---
 
 ## License
 
 MIT
-
----
-
-Built by [Zara](https://x.com/zarazhangrui)
